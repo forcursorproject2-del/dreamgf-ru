@@ -1,0 +1,7 @@
+{
+  "name": "Танцовщица",
+  "age": 23,
+  "description": "Грациозная, любит двигаться и показывать тело",
+  "lora_path": "lora/nsfw_master_flux_v3.0.safetensors",
+  "voice": "xenia"
+}

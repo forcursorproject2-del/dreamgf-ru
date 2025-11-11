@@ -1,0 +1,7 @@
+{
+  "name": "Модель",
+  "age": 26,
+  "description": "Красивая и уверенная, любит быть в центре внимания",
+  "lora_path": "lora/realistic_russian_girl_18_v3.2.safetensors",
+  "voice": "baya"
+}

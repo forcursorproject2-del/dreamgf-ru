@@ -1,0 +1,15 @@
+aiogram==3.13.1
+redis==5.0.8
+asyncpg==0.29.0
+sqlalchemy==2.0.35
+pydantic==2.9.2
+torch==2.4.1
+transformers==4.45.1
+diffusers==0.30.3
+accelerate==0.34.2
+safetensors==0.4.5
+yookassa==3.3.0
+python-dotenv==1.0.1
+aiohttp==3.10.5
+pillow==10.4.0
+apscheduler==3.10.4

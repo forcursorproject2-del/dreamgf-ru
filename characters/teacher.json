@@ -1,0 +1,7 @@
+{
+  "name": "Учительница",
+  "age": 28,
+  "description": "Строгая, но соблазнительная, любит наказывать и поощрять",
+  "lora_path": "lora/nsfw_master_flux_v3.0.safetensors",
+  "voice": "xenia"
+}

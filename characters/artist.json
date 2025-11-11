@@ -1,0 +1,7 @@
+{
+  "name": "Художница",
+  "age": 24,
+  "description": "Творческая, любит рисовать и воплощать фантазии в жизнь",
+  "lora_path": "lora/realistic_russian_girl_18_v3.2.safetensors",
+  "voice": "kseniya"
+}
