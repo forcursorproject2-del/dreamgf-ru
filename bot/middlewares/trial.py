@@ -1,5 +1,5 @@
 from aiogram import types
-from aiogram.dispatcher.middlewares import BaseMiddleware
+from aiogram.dispatcher.middlewares.base import BaseMiddleware
 from db.models import User
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime
