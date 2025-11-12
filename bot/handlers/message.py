@@ -3,14 +3,15 @@ from aiogram.types import Message
 from aiogram.filters import StateFilter
 from bot.states.forms import CharacterForm
 from db.database import Database
-from utils.cache import Cache
+from cache import cache
 from ai.text_llm import TextLLM
-from ai.voice_tts import generate_voice
-from ai.image_gen import generate_image
+from ai.voice_tts import generate_voice_async
+from ai.image_gen import generate_image_async
 from config.settings import RATE_LIMIT, CHAT_HISTORY_LIMIT
 from bot.keyboards.inline import get_action_keyboard
 import json
 import asyncio
+import random
 import logging
 
 logger = logging.getLogger(__name__)
@@ -18,6 +19,23 @@ router = Router()
 
 # Rate limiting
 user_last_message = {}
+
+# Список фраз "ищу фото"
+SEARCH_PHRASES = [
+    "ммм, хочешь фотку? щас поищу в шкафу 😏",
+    "ооо, ты просишь фото? подожди, найду самое горячее 🔥",
+    "сейчас, сейчас... где-то тут было... 😈",
+    "ммм, хочешь увидеть меня? ищу лучшее... 💋",
+    "фото? легко! щас поищу в белье... 😘"
+]
+
+REPLY_PHRASES = [
+    "вот, нашла! 🔥",
+    "нашёл самое горячее 😈",
+    "держи, котёнок 💋",
+    "вот, как просил... 😏",
+    "нашёл! смотри внимательно 🔥"
+]
 
 @router.message(F.text & ~F.text.startswith('/'))
 async def handle_message(
@@ -57,6 +75,15 @@ async def handle_message(
         # Get chat history
         history = await cache.get_chat_history(user_id, CHAT_HISTORY_LIMIT)
 
+        # Check if photo request
+        text_lower = text.lower()
+        is_photo_request = any(word in text_lower for word in ["фото", "покажи", "сиськи", "попк", "голая", "в белье"])
+
+        if is_photo_request:
+            # Handle photo request with intermediate messages
+            await handle_photo_request(message, user, character, cache, db)
+            return
+
         # Generate response
         response = await llm.generate_response(text, character, history)
 
@@ -68,7 +95,7 @@ async def handle_message(
 
         # Auto voice for short responses
         if len(response) < 100:
-            voice = await generate_voice(response, character.get('voice', 'xenia'))
+            voice = await generate_voice_async(response, character.get('voice', 'xenia'))
             if voice:
                 await message.answer_voice(voice)
 
@@ -94,6 +121,57 @@ async def handle_photo(message: Message, db: Database):
 
     except Exception as e:
         logger.error(f"Photo handling failed: {e}")
+
+async def handle_photo_request(message: Message, user, character, cache: Cache, db: Database):
+    """Handle photo request with intermediate messages"""
+    try:
+        user_id = message.from_user.id
+
+        # Check trial limits
+        if user.trial_photo_used and not user.is_vip:
+            await message.answer("📸 Одно фото в триале, милый 😏\nХочешь сколько угодно? Стань VIP!\n/vip")
+            return
+
+        # Check daily limits for non-VIP
+        if not user.is_vip:
+            photo_count = await cache.get_user_photo_count(user_id)
+            if photo_count >= 3:
+                await message.answer("Без VIP только 3 фото в день! /vip")
+                return
+
+        # Immediately respond with search phrase
+        await message.answer(random.choice(SEARCH_PHRASES))
+
+        # Generate prompt based on message
+        prompt = f"красивая русская девушка {character['name']} {character['age']} лет, обнажённая, реалистично, {message.text}"
+
+        # Generate image in background
+        image_bytes = await generate_image_async(prompt, f"{user.current_character}_lora", cache, user.is_vip, user)
+
+        if image_bytes:
+            caption = random.choice(REPLY_PHRASES)
+            await message.answer_photo(image_bytes, caption=caption)
+
+            # Increment counters
+            await cache.increment_photo_count(user_id)
+
+            # Generate voice if enabled and trial allows
+            if not user.trial_voice_used or user.is_vip:
+                voice = await generate_voice_async(caption, character.get('voice', 'xenia'), user)
+                if voice:
+                    await message.answer_voice(voice)
+
+            # Update trial status
+            if not user.is_vip:
+                user.trial_photo_used = True
+                await db.session.commit()
+
+        else:
+            await message.answer("Извини, не смогла найти фотку 😔 Попробуй позже!")
+
+    except Exception as e:
+        logger.error(f"Photo request handling failed: {e}")
+        await message.answer("Извини, что-то пошло не так 😔")
 
 def register(dp):
     dp.include_router(router)

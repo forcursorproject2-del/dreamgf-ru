@@ -9,7 +9,9 @@ import os
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 
-PORT = int(os.getenv("PORT", 8080))
+PORT = int(os.getenv("PORT", 10000))
+WEBHOOK_PATH = "/webhook"
+WEBHOOK_URL = f"https://{os.getenv('RENDER_EXTERNAL_HOSTNAME')}{WEBHOOK_PATH}"
 
 async def main():
     """Main function"""
@@ -17,13 +19,10 @@ async def main():
     register_handlers()
 
     # Webhook mode for production
-    if os.getenv("WEBHOOK_URL"):
-        webhook_url = os.getenv("WEBHOOK_URL")
-        webhook_path = "/webhook"
-
+    if os.getenv("WEBHOOK_URL") or os.getenv("RENDER_EXTERNAL_HOSTNAME"):
         # Set webhook
         await bot.set_webhook(
-            url=f"{webhook_url}{webhook_path}",
+            url=WEBHOOK_URL,
             drop_pending_updates=True
         )
 
@@ -34,11 +33,11 @@ async def main():
         webhook_handler = SimpleRequestHandler(
             dispatcher=dp,
             bot=bot,
-            webhook_path=webhook_path
+            webhook_path=WEBHOOK_PATH
         )
 
         # Register webhook handler
-        webhook_handler.register(app, path=webhook_path)
+        webhook_handler.register(app, path=WEBHOOK_PATH)
 
         # Add startup/shutdown handlers
         app.on_startup.append(on_startup)

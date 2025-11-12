@@ -2,6 +2,8 @@ import torch
 from diffusers import FluxPipeline
 import json
 import os
+import asyncio
+import uuid
 from utils.cache import Cache, get_prompt_hash
 from utils.watermark import add_watermark, image_to_bytes
 from config.settings import IMAGE_TIMEOUT
@@ -27,13 +29,13 @@ def load_pipeline():
             _pipeline = None
     return _pipeline
 
-async def generate_image(prompt: str, character_lora: str, cache: Cache = None, is_vip: bool = False, user=None) -> bytes:
-    """Generate image with LoRA"""
+def _generate_sync(prompt: str, character_lora: str, cache: Cache = None, is_vip: bool = False, user=None) -> bytes:
+    """Sync image generation"""
     try:
         # Check cache first
         if cache:
             prompt_hash = get_prompt_hash(prompt, character_lora)
-            cached = await cache.get_image_cache(0, prompt_hash)  # Global cache
+            cached = asyncio.run(cache.get_image_cache(0, prompt_hash))  # Global cache
             if cached:
                 logger.info("Using cached image")
                 return cached
@@ -59,21 +61,32 @@ async def generate_image(prompt: str, character_lora: str, cache: Cache = None, 
         ).images[0]
 
         # Add watermark if not VIP and trial ended
-        if not is_vip and user.trial_ended:
+        if not is_vip and user and user.trial_ended:
             image = add_watermark(image, "DreamGF.ru — VIP 990₽")
 
         # Convert to bytes
         image_bytes = image_to_bytes(image)
 
+        # Save to temp file
+        temp_filename = f"temp/photo_{uuid.uuid4()}.jpg"
+        os.makedirs("temp", exist_ok=True)
+        with open(temp_filename, "wb") as f:
+            f.write(image_bytes)
+
         # Cache the result
         if cache and image_bytes:
-            await cache.set_image_cache(0, prompt_hash, image_bytes)
+            asyncio.run(cache.set_image_cache(0, prompt_hash, image_bytes))
 
         return image_bytes
 
     except Exception as e:
         logger.error(f"Image generation failed: {e}")
         return None
+
+async def generate_image_async(prompt: str, character_lora: str, cache: Cache = None, is_vip: bool = False, user=None) -> bytes:
+    """Async image generation"""
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, _generate_sync, prompt, character_lora, cache, is_vip, user)
 
 def download_lora(url: str, filename: str):
     """Download LoRA from URL"""

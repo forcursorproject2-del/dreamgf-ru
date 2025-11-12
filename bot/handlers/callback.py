@@ -2,7 +2,7 @@ from aiogram import Router, F
 from aiogram.types import CallbackQuery
 from db.database import Database
 from utils.cache import Cache
-from ai.image_gen import generate_image
+from ai.image_gen import generate_image_async
 from ai.voice_tts import generate_voice
 from bot.keyboards.inline import get_action_keyboard
 import json
@@ -79,7 +79,7 @@ async def send_photo(callback: CallbackQuery, db: Database, cache: Cache):
 
         # Generate photo
         prompt = "красивая русская девушка 18 лет, обнажённая, реалистично"
-        image_bytes = await generate_image(prompt, "anya_lora", cache, user.is_vip)
+        image_bytes = await generate_image_async(prompt, "anya_lora", cache, user.is_vip)
 
         if image_bytes:
             await callback.message.answer_photo(image_bytes, caption="Твоё фото 😘")

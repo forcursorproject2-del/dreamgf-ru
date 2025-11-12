@@ -1,37 +1,15 @@
 version: '3.8'
+
 services:
-  bot:
+  dreamgf:
     build: .
-    environment:
-      - BOT_TOKEN=${BOT_TOKEN}
-      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-      - YOOKASSA_SHOP_ID=${YOOKASSA_SHOP_ID}
-      - YOOKASSA_SECRET_KEY=${YOOKASSA_SECRET_KEY}
-      - DATABASE_URL=${DATABASE_URL}
-      - REDIS_URL=${REDIS_URL}
-      - ADMIN_IDS=${ADMIN_IDS}
-    depends_on:
-      - redis
-      - postgres
-    volumes:
-      - ./characters:/app/characters
-      - ./lora:/app/lora
-
-  redis:
-    image: redis:7-alpine
     ports:
-      - "6379:6379"
-
-  postgres:
-    image: postgres:15-alpine
+      - "10000:10000"
     environment:
-      POSTGRES_DB: dreamgf
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: pass
-    ports:
-      - "5432:5432"
+      - DATABASE_URL=sqlite:///data/dreamgf.db
+      - REDIS_URL=memory://
+      - PORT=10000
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-volumes:
-  postgres_data:
+      - ./data:/app/data
+      - ./temp:/app/temp
+    restart: unless-stopped

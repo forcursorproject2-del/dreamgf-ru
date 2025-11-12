@@ -1,11 +1,10 @@
 aiogram==3.13.1
-redis==5.0.8
-asyncpg==0.29.0
-sqlalchemy==2.0.35
+sqlalchemy[asyncio]==2.0.35
+aiosqlite==0.20.0
 pydantic==2.9.2
-torch==2.4.1
+torch --index-url https://download.pytorch.org/whl/cpu
 transformers==4.45.1
-diffusers==0.30.3
+diffusers[torch]==0.30.3
 accelerate==0.34.2
 safetensors==0.4.5
 yookassa==3.3.0

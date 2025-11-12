@@ -32,6 +32,10 @@ class Cache:
         except Exception as e:
             logger.error(f"Failed to add message for {user_id}: {e}")
 
+    async def add_to_chat_history(self, user_id: int, message: str, response: str):
+        """Alias for add_message"""
+        await self.add_message(user_id, message, response)
+
     async def get_image_cache(self, user_id: int, prompt_hash: str) -> bytes:
         """Get cached image"""
         try:
@@ -67,6 +71,25 @@ class Cache:
             await self.redis.expire(key, 60)  # Reset every minute
         except Exception as e:
             logger.error(f"Failed to increment rate limit for {user_id}: {e}")
+
+    async def get_user_photo_count(self, user_id: int) -> int:
+        """Get current photo count for user"""
+        try:
+            key = f"user:{user_id}:photo_count"
+            count = await self.redis.get(key)
+            return int(count) if count else 0
+        except Exception as e:
+            logger.error(f"Failed to get photo count for {user_id}: {e}")
+            return 0
+
+    async def increment_photo_count(self, user_id: int):
+        """Increment photo count for user"""
+        try:
+            key = f"user:{user_id}:photo_count"
+            await self.redis.incr(key)
+            await self.redis.expire(key, 24 * 60 * 60)  # Reset every day
+        except Exception as e:
+            logger.error(f"Failed to increment photo count for {user_id}: {e}")
 
     async def close(self):
         """Close Redis connection"""
