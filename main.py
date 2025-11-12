@@ -9,6 +9,8 @@ import os
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 
+PORT = int(os.getenv("PORT", 8080))
+
 async def main():
     """Main function"""
     # Register handlers
@@ -45,10 +47,10 @@ async def main():
         # Run server
         runner = web.AppRunner(app)
         await runner.setup()
-        site = web.TCPSite(runner, host="0.0.0.0", port=int(os.getenv("PORT", 8080)))
+        site = web.TCPSite(runner, '0.0.0.0', PORT)
         await site.start()
 
-        logging.info(f"Webhook server started on port {os.getenv('PORT', 8080)}")
+        logging.info(f"Webhook server started on port {PORT}")
 
         # Keep running
         try:
