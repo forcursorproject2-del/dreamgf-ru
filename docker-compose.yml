@@ -1,17 +1,49 @@
 version: '3.8'
 
 services:
-  dreamgf:
+  bot:
     build: .
     ports:
       - "10000:10000"
     environment:
-      - DATABASE_URL=sqlite+aiosqlite:///data/dreamgf.db
-      - REDIS_URL=memory://
+      - BOT_TOKEN=${BOT_TOKEN}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - YOOKASSA_SHOP_ID=${YOOKASSA_SHOP_ID}
+      - YOOKASSA_SECRET_KEY=${YOOKASSA_SECRET_KEY}
+      - DATABASE_URL=postgresql+asyncpg://dreamgf_user:dreamgf_pass@postgres:5432/dreamgf
+      - REDIS_URL=redis://redis:6379
       - PORT=10000
+      - PUBLIC_IP=${PUBLIC_IP}
     volumes:
       - ./data:/app/data
       - ./temp:/app/temp
       - ./characters:/app/characters
       - ./lora:/app/lora
+    depends_on:
+      - redis
+      - postgres
     restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=dreamgf
+      - POSTGRES_USER=dreamgf_user
+      - POSTGRES_PASSWORD=dreamgf_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+  postgres_data:

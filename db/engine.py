@@ -1,9 +1,12 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
-from config.settings import DATABASE_URL
+import os
 import logging
 
 logger = logging.getLogger(__name__)
+
+# Get database URL from environment
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://dreamgf_user:dreamgf_pass@postgres:5432/dreamgf")
 
 # Create async engine
 engine = create_async_engine(DATABASE_URL, echo=False)

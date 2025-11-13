@@ -1,90 +1,62 @@
-import torch
+import asyncio
 import io
-from config.settings import VOICE_TIMEOUT
+import os
+from typing import Optional
 import logging
+import torch
+import soundfile as sf
+from config.settings import VOICE_TIMEOUT
 
 logger = logging.getLogger(__name__)
 
-# Global model cache
-_model = None
-_device = torch.device('cpu')
+# Global TTS model cache
+_tts_model = None
+_device = torch.device("cpu")
 
-def load_model():
+def load_tts_model():
     """Load Silero TTS model"""
-    global _model
-    if _model is None:
+    global _tts_model
+    if _tts_model is None:
         try:
-            _model = torch.hub.load(
-                'snakers4/silero-models',
-                'silero_tts',
-                language='ru',
-                speaker='v5_ru',
-                verbose=False
-            )
-            _model.to(_device)
+            _tts_model = torch.hub.load("snakers4/silero-models", "silero_tts", language="ru", speaker="v3_1_ru")
+            _tts_model.to(_device)
             logger.info("Silero TTS model loaded")
         except Exception as e:
             logger.error(f"Failed to load TTS model: {e}")
-            _model = None
-    return _model
+            _tts_model = None
+    return _tts_model
 
-async def generate_voice(text: str, speaker: str = 'xenia', user=None) -> io.BytesIO:
-    """Generate voice from text"""
+async def generate_voice_async(text: str, speaker: str = "xenia", user=None) -> Optional[bytes]:
+    """Generate voice using Silero TTS with SSML support"""
     try:
-        model = load_model()
+        # Check trial limits
+        if user and not user.is_vip and user.trial_voice_used:
+            return None
+
+        model = load_tts_model()
         if model is None:
             return None
 
-        # SSML for emotions
-        ssml_text = f'<speak><prosody rate="slow" pitch="+2st">{text}</prosody></speak>'
+        # Add SSML for better voice
+        ssml_text = f'<prosody rate="1.1">{text}</prosody>'
 
         # Generate audio
         audio = model.apply_tts(
             text=ssml_text,
             speaker=speaker,
-            sample_rate=24000
+            sample_rate=48000
         )
 
         # Convert to bytes
         buffer = io.BytesIO()
-        torch.save(audio, buffer)
-        buffer.seek(0)
+        sf.write(buffer, audio.numpy(), 48000, format='OGG')
+        audio_bytes = buffer.getvalue()
 
-        return buffer
+        # Mark trial as used
+        if user and not user.is_vip:
+            user.trial_voice_used = True
 
-    except Exception as e:
-        logger.error(f"Voice generation failed: {e}")
-        return None
-
-async def generate_voice_async(text: str, speaker: str = 'xenia', user=None) -> io.BytesIO:
-    """Async wrapper for generate_voice"""
-    import asyncio
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(None, generate_voice_sync, text, speaker, user)
-
-def generate_voice_sync(text: str, speaker: str = 'xenia', user=None) -> io.BytesIO:
-    """Sync version for background execution"""
-    try:
-        model = load_model()
-        if model is None:
-            return None
-
-        # SSML for emotions
-        ssml_text = f'<speak><prosody rate="slow" pitch="+2st">{text}</prosody></speak>'
-
-        # Generate audio
-        audio = model.apply_tts(
-            text=ssml_text,
-            speaker=speaker,
-            sample_rate=24000
-        )
-
-        # Convert to bytes
-        buffer = io.BytesIO()
-        torch.save(audio, buffer)
-        buffer.seek(0)
-
-        return buffer
+        return audio_bytes
 
     except Exception as e:
         logger.error(f"Voice generation failed: {e}")

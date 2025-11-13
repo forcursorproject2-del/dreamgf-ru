@@ -7,6 +7,7 @@ from cache import cache
 from ai.text_llm import TextLLM
 from ai.voice_tts import generate_voice_async
 from ai.image_gen import generate_image_async
+from cache import cache
 from config.settings import RATE_LIMIT, CHAT_HISTORY_LIMIT
 from bot.keyboards.inline import get_action_keyboard
 import json
@@ -23,7 +24,7 @@ user_last_message = {}
 # Список фраз "ищу фото"
 SEARCH_PHRASES = [
     "ммм, хочешь фотку? щас поищу 😏",
-    "ооо, ты просишь фото? подожди, найду самое горячее 🔥",
+    "ооо, ты хочешь фото? найду что то интересное  🔥",
     "сейчас, сейчас... где-то тут было... 😈",
     "ммм, хочешь увидеть меня? ищу лучшее... 💋",
     "фото? легко! щас поищу в белье... 😘"
@@ -31,7 +32,7 @@ SEARCH_PHRASES = [
 
 REPLY_PHRASES = [
     "вот, нашла! 🔥",
-    "нашёл самое горячее 😈",
+    "нашла самое горячее 😈",
     "держи, котёнок 💋",
     "вот, как просил... 😏",
     "нашла! смотри внимательно 🔥"
@@ -77,7 +78,7 @@ async def handle_message(
 
         # Check if photo request
         text_lower = text.lower()
-        is_photo_request = any(word in text_lower for word in ["фото", "покажи", "сиськи", "попк", "голая", "в белье"])
+        is_photo_request = any(word in text_lower for word in ["фото", "покажи", "сиськи", "попу", "голая", "в белье"])
 
         if is_photo_request:
             # Handle photo request with intermediate messages

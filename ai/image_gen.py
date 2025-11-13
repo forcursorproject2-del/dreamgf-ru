@@ -1,91 +1,92 @@
-import httpx
+import torch
+from diffusers import FluxPipeline
 import json
 import os
 import asyncio
 import uuid
-from utils.cache import Cache, get_prompt_hash
+from cache import cache
 from utils.watermark import add_watermark, image_to_bytes
-from config.settings import IMAGE_TIMEOUT, OPENROUTER_API_KEY
+from config.settings import IMAGE_TIMEOUT
 import logging
-from PIL import Image
-import io
 
 logger = logging.getLogger(__name__)
 
-async def generate_image_async(prompt: str, character_lora: str, cache: Cache = None, is_vip: bool = False, user=None) -> str:
-    """Generate image via OpenRouter API"""
+# Global pipeline cache
+_pipeline = None
+
+def load_pipeline():
+    """Load Flux pipeline"""
+    global _pipeline
+    if _pipeline is None:
+        try:
+            _pipeline = FluxPipeline.from_pretrained(
+                "black-forest-labs/FLUX.1-dev",
+                torch_dtype=torch.bfloat16
+            ).to("cpu")
+            logger.info("Flux pipeline loaded")
+        except Exception as e:
+            logger.error(f"Failed to load Flux pipeline: {e}")
+            _pipeline = None
+    return _pipeline
+
+def _generate_sync(prompt: str, character_lora: str, cache: Cache = None, is_vip: bool = False, user=None) -> bytes:
+    """Sync image generation"""
     try:
         # Check cache first
         if cache:
             prompt_hash = get_prompt_hash(prompt, character_lora)
-            cached = await cache.get_image_cache(0, prompt_hash)  # Global cache
+            cached = asyncio.run(cache.get_image_cache(0, prompt_hash))  # Global cache
             if cached:
                 logger.info("Using cached image")
-                # Save cached image to temp file
-                temp_filename = f"temp/photo_{uuid.uuid4()}.jpg"
-                os.makedirs("temp", exist_ok=True)
-                with open(temp_filename, "wb") as f:
-                    f.write(cached)
-                return temp_filename
+                return cached
 
-        # Prepare prompt
-        full_prompt = f"Russian girl 19 y.o., {prompt}, realistic, 4k, nsfw"
+        pipeline = load_pipeline()
+        if pipeline is None:
+            return None
 
-        async with httpx.AsyncClient(timeout=IMAGE_TIMEOUT) as client:
-            response = await client.post(
-                "https://openrouter.ai/api/v1/images/generations",
-                headers={
-                    "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-                    "Content-Type": "application/json"
-                },
-                json={
-                    "model": "black-forest-labs/flux-dev",
-                    "prompt": full_prompt,
-                    "n": 1,
-                    "size": "1024x1024"
-                }
-            )
+        # Load LoRA
+        lora_path = f"lora/{character_lora}"
+        if os.path.exists(lora_path):
+            pipeline.load_lora_weights(lora_path)
+        else:
+            logger.warning(f"LoRA not found: {lora_path}")
 
-            if response.status_code != 200:
-                logger.error(f"OpenRouter API error: {response.status_code} - {response.text}")
-                return None
+        # Generate image
+        image = pipeline(
+            prompt,
+            height=1024,
+            width=1024,
+            guidance_scale=7.5,
+            num_inference_steps=28
+        ).images[0]
 
-            data = response.json()
-            image_url = data["data"][0]["url"]
+        # Add watermark if not VIP and trial ended
+        if not is_vip and user and user.trial_ended:
+            image = add_watermark(image, "DreamGF.ru — VIP 990₽")
 
-            # Download image
-            image_response = await client.get(image_url)
-            if image_response.status_code != 200:
-                logger.error(f"Failed to download image: {image_response.status_code}")
-                return None
+        # Convert to bytes
+        image_bytes = image_to_bytes(image)
 
-            image_bytes = image_response.content
+        # Save to temp file
+        temp_filename = f"temp/photo_{uuid.uuid4()}.jpg"
+        os.makedirs("temp", exist_ok=True)
+        with open(temp_filename, "wb") as f:
+            f.write(image_bytes)
 
-            # Process image
-            image = Image.open(io.BytesIO(image_bytes))
+        # Cache the result
+        if cache and image_bytes:
+            asyncio.run(cache.set_image_cache(0, prompt_hash, image_bytes))
 
-            # Add watermark if not VIP and trial ended
-            if not is_vip and user and user.trial_ended:
-                image = add_watermark(image, "DreamGF.ru — VIP 990₽")
-
-            # Convert to bytes
-            image_bytes = image_to_bytes(image)
-
-            # Save to temp file
-            temp_filename = f"temp/photo_{uuid.uuid4()}.jpg"
-            os.makedirs("temp", exist_ok=True)
-            with open(temp_filename, "wb") as f:
-                f.write(image_bytes)
-
-            # Cache the result
-            if cache and image_bytes:
-                await cache.set_image_cache(0, prompt_hash, image_bytes)
-
-            return temp_filename
+        return image_bytes
 
     except Exception as e:
         logger.error(f"Image generation failed: {e}")
         return None
+
+async def generate_image_async(prompt: str, character_lora: str, cache: Cache = None, is_vip: bool = False, user=None) -> bytes:
+    """Async image generation"""
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, _generate_sync, prompt, character_lora, cache, is_vip, user)
 
 def download_lora(url: str, filename: str):
     """Download LoRA from URL"""

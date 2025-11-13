@@ -11,7 +11,7 @@ logging.basicConfig(level=logging.INFO)
 
 PORT = int(os.getenv("PORT", 10000))
 WEBHOOK_PATH = "/webhook"
-WEBHOOK_URL = f"https://{os.getenv('RENDER_EXTERNAL_HOSTNAME')}{WEBHOOK_PATH}"
+WEBHOOK_URL = f"https://{os.getenv('PUBLIC_IP') or 'localhost'}:{PORT}{WEBHOOK_PATH}"
 
 async def main():
     """Main function"""
@@ -19,7 +19,7 @@ async def main():
     register_handlers()
 
     # Webhook mode for production
-    if os.getenv("WEBHOOK_URL") or os.getenv("RENDER_EXTERNAL_HOSTNAME"):
+    if os.getenv("WEBHOOK_URL") or os.getenv("PUBLIC_IP"):
         # Set webhook
         await bot.set_webhook(
             url=WEBHOOK_URL,
