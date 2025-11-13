@@ -6,10 +6,12 @@ services:
     ports:
       - "10000:10000"
     environment:
-      - DATABASE_URL=sqlite:///data/dreamgf.db
+      - DATABASE_URL=sqlite+aiosqlite:///data/dreamgf.db
       - REDIS_URL=memory://
       - PORT=10000
     volumes:
       - ./data:/app/data
       - ./temp:/app/temp
+      - ./characters:/app/characters
+      - ./lora:/app/lora
     restart: unless-stopped

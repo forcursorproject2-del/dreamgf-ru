@@ -80,7 +80,11 @@ class MemoryCache:
             self._cache.clear()
 
 # Initialize cache
-if REDIS_URL.startswith("memory://"):
+if REDIS_URL and REDIS_URL.startswith("memory://"):
     cache = MemoryCache()
 else:
-    cache = redis.from_url(REDIS_URL)
+    try:
+        cache = redis.from_url(REDIS_URL or "redis://localhost:6379")
+    except Exception:
+        logger.warning("Redis not available, using memory cache")
+        cache = MemoryCache()

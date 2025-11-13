@@ -1,15 +1,17 @@
-# TODO: Добавить систему фри-триала в DreamGF RU бот
+# Адаптация под Render Free
 
-## Задачи:
-- [x] Изменить модель User в db/models.py: добавить поля trial_messages, trial_photo_used, trial_voice_used, trial_ended
-- [x] Создать middleware bot/middlewares/trial.py
-- [x] Подключить middleware в bot/loader.py
-- [x] Изменить bot/handlers/message.py: добавить проверку trial_allowed
-- [x] Изменить ai/image_gen.py: добавить водяной знак только если НЕ VIP и триал кончился
-- [x] Изменить ai/voice_tts.py: добавить водяной знак только если НЕ VIP и триал кончился (если применимо)
-- [x] Изменить payments/yookassa.py: добавить скидку первым 100 платежам
+## Выполнено
+- [x] Анализ кода и планирование
 
-## Followup:
-- [ ] Протестировать миграцию базы данных
-- [ ] Проверить работу middleware
-- [ ] Проверить лимиты и блокировки
+## В работе
+- [ ] utils/cache.py — заменить Redis на memory cache с fallback
+- [ ] ai/image_gen.py — генерация фото через OpenRouter API
+- [ ] docker-compose.yml — убрать Redis и Postgres
+- [ ] Dockerfile — обновить для минимального образа
+- [ ] Тестирование изменений
+
+## Детали
+1. **utils/cache.py**: Удалить `import redis.asyncio`, заменить на dict + asyncio.Lock с TTL
+2. **ai/image_gen.py**: httpx.AsyncClient, model: black-forest-labs/flux-dev, prompt с Russian girl, сохранить в temp/
+3. **docker-compose.yml**: Только сервис bot, volumes для data, temp, characters, lora
+4. **Dockerfile**: FROM python:3.12-slim, без torch/diffusers

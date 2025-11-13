@@ -146,11 +146,12 @@ async def handle_photo_request(message: Message, user, character, cache: Cache, 
         prompt = f"красивая русская девушка {character['name']} {character['age']} лет, обнажённая, реалистично, {message.text}"
 
         # Generate image in background
-        image_bytes = await generate_image_async(prompt, f"{user.current_character}_lora", cache, user.is_vip, user)
+        image_path = await generate_image_async(prompt, f"{user.current_character}_lora", cache, user.is_vip, user)
 
-        if image_bytes:
+        if image_path:
             caption = random.choice(REPLY_PHRASES)
-            await message.answer_photo(image_bytes, caption=caption)
+            with open(image_path, "rb") as photo:
+                await message.answer_photo(photo, caption=caption)
 
             # Increment counters
             await cache.increment_photo_count(user_id)
